@@ -1,5 +1,6 @@
 import librosa
 import os
+import sklearn
 from sklearn.model_selection import train_test_split
 from keras.utils import to_categorical
 import numpy as np
@@ -12,25 +13,35 @@ DATA_PATH = "./data/"
 # Output: Tuple (Label, Indices of the labels, one-hot encoded labels)
 def get_labels(path=DATA_PATH):
     labels = os.listdir(path)
+    labels = [l for l in labels if not l.startswith('.')]
     label_indices = np.arange(0, len(labels))
     return labels, label_indices, to_categorical(label_indices)
 
 
 # Handy function to convert wav2mfcc
-def wav2mfcc(file_path, max_len=11):
+def wav2mfcc(file_path, max_len=11, rescale=False):
     wave, sr = librosa.load(file_path, mono=True, sr=None)
     wave = wave[::3]
-    mfcc = librosa.feature.mfcc(wave, sr=16000)
+    mfcc = librosa.feature.mfcc(wave, sr=sr)
+    # delta2_mfcc = librosa.feature.delta(mfcc, order=2)
 
     # If maximum length exceeds mfcc lengths then pad the remaining ones
     if (max_len > mfcc.shape[1]):
         pad_width = max_len - mfcc.shape[1]
         mfcc = np.pad(mfcc, pad_width=((0, 0), (0, pad_width)), mode='constant')
+        # delta2_mfcc = np.pad(delta2_mfcc, pad_width=((0, 0), (0, pad_width)), mode='constant')
 
     # Else cutoff the remaining parts
     else:
         mfcc = mfcc[:, :max_len]
-    
+        # delta2_mfcc = delta2_mfcc[:, :max_len]
+    # mfcc = np.vstack((mfcc / 10, delta2_mfcc))
+    if rescale:
+        mfcc = sklearn.preprocessing.scale(mfcc, axis=1)
+        # delta2_mfcc = sklearn.preprocessing.scale(delta2_mfcc, axis=1)
+
+    # mfcc = np.stack((mfcc / 10, delta2_mfcc), axis=-1)
+
     return mfcc
 
 
